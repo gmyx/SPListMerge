@@ -7,6 +7,7 @@ How to use
 ==========
 Input Format
 ------
+```JavaScript
 { table1Name: 
 	{ fields: 
 		{field1inSharepoint: OutputName1, field2inSharepoint: OutputName2, fieldninSharepoint: OutputNamen }
@@ -23,6 +24,7 @@ Input Format
  table3Name {...},
  tablenName {...}
 } //end tables
+```
 
 Notes:
 *the where clause if built similar to the CAML where clause, they can also be nested like the CAML where clause

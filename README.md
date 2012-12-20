@@ -30,6 +30,7 @@ Notes:
 
 Sample code to use in Sharepoint
 --------------------------------
+'''JavaScript
 function receiveData(aJSON) {
 	//do something with the results
 	$("div#output").text("Results: "); // + JSON.stringify(aJSON));
@@ -57,7 +58,7 @@ var lInput = {
 
 
 SPListMerge.getLists(lInput, receiveData); //call to the multiple lists
-
+'''
 
 Verion history
 ==============

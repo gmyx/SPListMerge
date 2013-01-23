@@ -21,6 +21,11 @@
 
 	function getAssociatedData(aId, aName, aData, aJoin, aOut) {
 		var lSingleField, lSingleJoin;
+		
+		//failsafe
+		if (aId === "0") {
+			return null;
+		}
 
 		//prepare
 		if (aOut === undefined) {
@@ -30,14 +35,17 @@
 		//add associated fields for required row
 		for (lSingleField in aJoin.fields) {
 			if (aJoin.fields.hasOwnProperty(lSingleField)) {
-				//if using an array, it won't work
-				if (aJoin.fields[lSingleField].name !== undefined) {
-					if (aJoin.fields[lSingleField].output !== false) {
-						aOut[aJoin.fields[lSingleField].name] = aData[aName][aId][aJoin.fields[lSingleField]];
-					} //end if output !== false
-				} else {
-					aOut[aJoin.fields[lSingleField]] = aData[aName][aId][aJoin.fields[lSingleField]];
-				} //end if name !== undefined
+				//see if target ID exists, if not skip
+				if (aData[aName][aId] !== undefined) {
+					//if using an array, it won't work        
+					if (aJoin.fields[lSingleField].name !== undefined) {
+						if (aJoin.fields[lSingleField].output !== false) {
+							aOut[aJoin.fields[lSingleField].name] = aData[aName][aId][aJoin.fields[lSingleField]];
+						} //end if output !== false
+					} else {
+						aOut[aJoin.fields[lSingleField]] = aData[aName][aId][aJoin.fields[lSingleField]];
+					} //end if name !== undefined
+				} //end if aId !== undefined
 			} //end if hasownproperty
 		} //end for single field
 
@@ -45,8 +53,11 @@
 		if (aJoin.join !== undefined) {
 			for (lSingleJoin in aJoin.join) {
 				if (aJoin.join.hasOwnProperty(lSingleJoin)) {
-					aOut = JSONJoin.merge(getAssociatedData(aData[aName][aId][aJoin.join[lSingleJoin].sourceField],
-						lSingleJoin, aData, aJoin.join[lSingleJoin]), aOut);
+					//ensure target data exists
+					if (aData[aName][aId] !== undefined) {
+						aOut = getAssociatedData(aData[aName][aId][aJoin.join[lSingleJoin].sourceField],
+							lSingleJoin, aData, aJoin.join[lSingleJoin]);
+					} //end aId !==udnefined 
 				} //end has own property
 			} //end for
 		} //end if join !== undefined
@@ -197,14 +208,18 @@
 
 	function buildSingleWhereClause(aClause, aFieldName) {
 		var lOut = "<" + aClause.operator + ">"; //open op clause
-		lOut += "<FieldRef Name='" + aFieldName + "'></FieldRef>"; //field ref
+		if (aClause.alias !== undefined) { 
+			lOut += "<FieldRef Name='" + aClause.alias + "'></FieldRef>"; //field ref
+		} else {
+			lOut += "<FieldRef Name='" + aFieldName + "'></FieldRef>"; //field ref
+		}
 
 		//determine if type is specifyed or not and try to see if a number if not
 		if (aClause.type !== undefined) {
 			if (aClause.type === 'String') {
 				lOut += "<Value Type='" + aClause.type + "'>'" + aClause.value + "'";
 			} else {
-				//assume int
+				//assume does not need quotes
 				lOut += "<Value Type='" + aClause.type + "'>" + aClause.value;
 			}
 		} else if ($.isNumeric(aClause.value) === true) {
@@ -223,7 +238,7 @@
 
 		for (lSingleItem in aWhere) {
 			if (aWhere.hasOwnProperty(lSingleItem)) {
-				if (lSingleItem === 'And' || lSingleItem === 'Or') {
+				if (lSingleItem.toLowerCase() === 'and' || lSingleItem.toLowerCase() === 'or') {
 					//branch off since this can be recursive
 					lOut += buildWhereClause(aWhere[lSingleItem], lSingleItem);
 				} else {
@@ -289,7 +304,7 @@
 						for (lSingleWhere in aData[lSingleTable].where) {
 							if (aData[lSingleTable].where.hasOwnProperty(lSingleWhere)) {
 								//see if an join operator
-								if (lSingleWhere === 'And' || lSingleWhere === 'Or') {
+								if (lSingleWhere.toLowerCase() === 'and' || lSingleWhere.toLowerCase() === 'or') {
 									//branch off since this can be recursive
 									lWhereClause += buildWhereClause(aData[lSingleTable].where[lSingleWhere], lSingleWhere);
 								} else {
@@ -299,7 +314,6 @@
 						} //end for where clauses
 	
 						//now get the records
-						console.log(lWhereClause);
 						$().SPServices({
 							operation: "GetListItems",
 							async: false,
@@ -343,4 +357,3 @@
 		aCallback(JSONJoin.join(mLists, aData));
 	};
 }(window.SPListMerge = window.SPListMerge || {}, jQuery));
-

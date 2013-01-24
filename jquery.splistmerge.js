@@ -67,7 +67,7 @@
 
 	function joinData(aData, aJoin) {
 		//all data is gathered and in a JSON format, lets start
-		var lSingleTable, lSingleRow, lSingleField, lSingleJoin, lOutput = {}, lOutputSingleRow, lData;
+		var lSingleTable, lSingleRow, lSingleField, lSingleJoin, lOutput = {}, lOutputSingleRow, lData, lRealName;
 
 		//go throught every base table
 		for (lSingleTable in aJoin) {
@@ -82,15 +82,16 @@
 						lOutputSingleRow[lSingleRow] = {};
 						for (lSingleField in aJoin[lSingleTable].fields) {
 							if (aJoin[lSingleTable].fields.hasOwnProperty(lSingleField)) {
-								if (aJoin[lSingleTable].fields[lSingleField].name !== undefined) {
+								lRealName = aJoin[lSingleTable].fields[lSingleField];
+								if (lRealName.name !== undefined) {
 									//see if output !== false
-									if (aJoin[lSingleTable].fields[lSingleField].output !== false) {
+									if (lRealName.output !== false) {
 										//what? yes that is 3 levels of nested objects
-										lOutputSingleRow[lSingleRow][lSingleField] = aData[lSingleTable][lSingleRow][lSingleField];
+										lOutputSingleRow[lSingleRow][lRealName.name] = aData[lSingleTable][lSingleRow][lRealName.name];
 									} //end if output !== false
 								} else {
 									//what? yes that is 3 levels of nested objects
-									lOutputSingleRow[lSingleRow][lSingleField] = aData[lSingleTable][lSingleRow][lSingleField];
+									lOutputSingleRow[lSingleRow][lRealName] = aData[lSingleTable][lSingleRow][lRealName];
 								} //end if name !== undefined
 							} //end if own property single field
 						} //end for single field
@@ -179,7 +180,8 @@
 	function processResults(aDataSource, aIDField, aName) {
 		return function (xData) {
 			//convert received XML to JSON
-			var lJSON, lMappings = getMappings(aDataSource), lCount, lIndex, lRow = {}, lSingleField, lSourceFields = [];
+			var lJSON, lMappings = getMappings(aDataSource), lCount, lIndex, lRow = {}, lSingleField,
+				lSourceFields = [], lClutteredFields = [], lClutterPatt = /.*;#(.*)/;
 			lJSON = $(xData.responseXML).SPFilterNode("z:row").SPXmlToJson(lMappings);
 
 			//make like of all lookup fields added as sourcefields. Needs to be flattened.
@@ -187,6 +189,8 @@
 				if (aDataSource.fields.hasOwnProperty(lSingleField)) {
 					if (aDataSource.fields[lSingleField].asSourceField === true) {
 						lSourceFields.push(lSingleField);
+					} else if (aDataSource.fields[lSingleField].complex === true) {
+						lClutteredFields.push(lSingleField);
 					}
 				}
 			}
@@ -197,6 +201,14 @@
 					for (lIndex = 0; lIndex < lSourceFields.length; lIndex += 1) {
 						//update source field to just ID
 						lJSON[lCount][lSourceFields[lIndex]] = lJSON[lCount][lSourceFields[lIndex]].lookupId;
+					}
+				}
+
+				//de-clutter if required
+				if (lClutteredFields[0] !== undefined) {
+					for (lIndex = 0; lIndex < lClutteredFields.length; lIndex += 1) {
+						//update source field to just ID
+						lJSON[lCount][lClutteredFields[lIndex]] = lJSON[lCount][lClutteredFields[lIndex]].match(lClutterPatt)[1];
 					}
 				}
 
@@ -258,14 +270,34 @@
 	}
 
 	function internalGetLists(aData, aIsRootLevel) {
-		var lSingleTable, lSingleJoin, lSingleField, lSingleWhere, lWhereClause = "", lFields = "", lID;
+		var lSingleTable, lSingleJoin, lSingleField, lSingleWhere, lWhereClause = "", lFields = "", lID, lLookups = [];
 
 		for (lSingleTable in aData) {
 			if (aData.hasOwnProperty(lSingleTable)) {
+				//Pre step: get list members in order to trap unaddressed lookups (cleaner output)
+				$().SPServices({
+					operation: "GetList",
+					listName: lSingleTable,
+					async: false,
+					completefunc: function(xData, Status) {
+						$(xData.responseXML).find("Fields > Field").each(function() {
+							if ($(this).attr("Type") === "Lookup" || $(this).attr("Type") === "Calculated") {
+								lLookups[$(this).attr("StaticName")] = $(this).attr("StaticName");
+							}
+						});
+					}
+				});
+
 				//step 1, get requested list
 				for (lSingleField in aData[lSingleTable].fields) {
 					if (aData[lSingleTable].fields.hasOwnProperty(lSingleField)) {
 						lFields += "<FieldRef Name='" + lSingleField + "' />";
+
+						//check if requested field is in list of lookups / calculated for de-cluttering latter
+						if (lLookups[lSingleField] !== undefined) {
+							//make not of it in the aData structure
+							aData[lSingleTable].fields[lSingleField] = {name: lSingleField, complex: true};
+						}
 					}
 				}
 

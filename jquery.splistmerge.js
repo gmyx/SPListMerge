@@ -206,8 +206,12 @@
 		};
 	}
 
+	function properCap(aText) { //ensure the proper capilization of where clauses because sharepoint is picky
+		return aText.charAt(0).toUpperCase() + aText.slice(1).toLowerCase();
+	}
+
 	function buildSingleWhereClause(aClause, aFieldName) {
-		var lOut = "<" + aClause.operator + ">"; //open op clause
+		var lOut = "<" + properCap(aClause.operator) + ">"; //open op clause
 		if (aClause.alias !== undefined) { 
 			lOut += "<FieldRef Name='" + aClause.alias + "'></FieldRef>"; //field ref
 		} else {
@@ -228,13 +232,13 @@
 			lOut += "<Value Type='String'>'" + aClause.value + "'";
 		}
 		lOut += "</Value>"; //end value clause
-		lOut += "</" + aClause.operator + ">"; //end op clause
+		lOut += "</" + properCap(aClause.operator) + ">"; //end op clause
 
 		return lOut;
 	}
 
 	function buildWhereClause(aWhere, aWhereOperator) {
-		var lOut = "<" + aWhereOperator + ">", lSingleItem;
+		var lOut = "<" + properCap(aWhereOperator) + ">", lSingleItem;
 
 		for (lSingleItem in aWhere) {
 			if (aWhere.hasOwnProperty(lSingleItem)) {
@@ -248,7 +252,7 @@
 			}
 		}
 
-		lOut += "</" + aWhereOperator + ">";
+		lOut += "</" + properCap(aWhereOperator) + ">";
 
 		return lOut;
 	}

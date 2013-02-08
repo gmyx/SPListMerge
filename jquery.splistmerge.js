@@ -274,6 +274,11 @@
 
 		for (lSingleTable in aData) {
 			if (aData.hasOwnProperty(lSingleTable)) {
+				//pre-pre-step: cleanup local varialbes
+				lFields = "";
+				lLookups = [];
+				lWhereClause = "";
+
 				//Pre step: get list members in order to trap unaddressed lookups (cleaner output)
 				$().SPServices({
 					operation: "GetList",
@@ -326,9 +331,13 @@
 					lID = 'ID';
 				}
 
-				//now we have an Id, look for it in the list and add it if required
-				if (aData[lSingleTable].fields[lID] === undefined) {
-					//add it
+				//Id may be a complex (I.E. lookup) field, if yes, add to fields list as complex and hidden
+				if (lLookups[lID] !== undefined) {
+					//make not of it in the aData structure
+					aData[lSingleTable].fields[lID] = {name: lID, complex: true, output: false};
+					lFields += "<FieldRef Name='" + lID + "' />";
+				} else if (aData[lSingleTable].fields[lID] === undefined) {
+					//now we have an Id, look for it in the list and add it if required
 					aData[lSingleTable].fields[lID] = {name: lID, output: false};
 					lFields += "<FieldRef Name='" + lID + "' />";
 				} //end if field === undefined
